@@ -472,7 +472,130 @@ class EDA:
             ax.set_xlabel("Year")
             ax.set_ylabel("Population")
             st.pyplot(fig)
-            
+
+            st.subheader("3️⃣ 연도별 전체 인구 추이 + 2035년 예측")
+
+            nationwide = df_pop[df_pop['지역'] == '전국'].sort_values('연도')
+            fig, ax = plt.subplots()
+            sns.lineplot(x='연도', y='인구', data=nationwide, marker='o', ax=ax)
+
+            # 최근 3년 평균 자연증가 계산 (출생 - 사망)
+            recent = nationwide.tail(3)
+            recent['자연증가'] = recent['출생아수(명)'] - recent['사망자수(명)']
+            avg_increase = int(recent['자연증가'].mean())
+
+            # 예측: 마지막 인구 + 평균증가 * (2035 - 마지막연도)
+            last_year = nationwide['연도'].max()
+            last_pop = nationwide['인구'].iloc[-1]
+            years_ahead = 2035 - last_year
+            predicted_pop = last_pop + avg_increase * years_ahead
+
+            # 예측값 표시
+            ax.axvline(2035, color='gray', linestyle='--')
+            ax.scatter(2035, predicted_pop, color='red', label='Predicted 2035')
+            ax.text(2035, predicted_pop, f"{predicted_pop:,}", color='red', fontsize=10)
+
+            ax.set_title("Population Trend with 2035 Prediction")
+            ax.set_xlabel("Year")
+            ax.set_ylabel("Population")
+            ax.legend()
+            st.pyplot(fig)
+
+            st.markdown(f"""
+            > 🔮 **2035년 예상 인구**: `{predicted_pop:,}`명  
+            > 최근 3년 평균 자연증가량 (출생 - 사망): `{avg_increase:,}`명/년 기준
+            """)
+            st.subheader("4️⃣ 지역별 최근 5년 인구 변화량 분석")
+
+            # '전국' 제외 & 최근 5년 필터링
+            df_filtered = df_pop[df_pop['지역'] != '전국']
+            latest_years = sorted(df_filtered['연도'].unique())[-5:]
+            df_recent = df_filtered[df_filtered['연도'].isin(latest_years)]
+
+            # 변화량 계산
+            changes = df_recent.groupby('지역')['인구'].agg(['first', 'last'])
+            changes['변화량'] = changes['last'] - changes['first']
+            changes = changes.sort_values(by='변화량', ascending=False)
+            changes['지역 (EN)'] = changes.index.map(lambda x: x.encode('latin1').decode('utf-8'))  # 지역명 변환 처리
+
+            # 천 단위 변환
+            changes['변화량(천 명)'] = (changes['변화량'] / 1000).round(1)
+
+            # 시각화
+            fig, ax = plt.subplots(figsize=(8, 6))
+            sns.barplot(x='변화량(천 명)', y='지역 (EN)', data=changes.reset_index(), palette='coolwarm', ax=ax)
+            for i, v in enumerate(changes['변화량(천 명)']):
+            ax.text(v, i, f"{v:.1f}", color='black', va='center')
+            ax.set_title("Top Population Change by Region (Last 5 Years)")
+            ax.set_xlabel("Change (Thousands)")
+            ax.set_ylabel("Region")
+            st.pyplot(fig)
+
+            st.markdown("""
+            > 🔎 **그래프 해석**  
+            - 오른쪽으로 길게 뻗은 막대일수록 인구가 많이 증가한 지역입니다.  
+            - 왼쪽(마이너스)은 인구가 감소한 지역을 나타냅니다.  
+            - 수도권이나 대도시 인구 유입 경향을 볼 수 있습니다.
+            """)
+            st.subheader("5️⃣ 인구 증감 상위 지역/연도 분석")
+
+            # 전국 제외
+            df_non_total = df_pop[df_pop['지역'] != '전국'].copy()
+
+            # 연도별 인구 변화량 계산
+            df_non_total.sort_values(['지역', '연도'], inplace=True)
+            df_non_total['증감량'] = df_non_total.groupby('지역')['인구'].diff()
+
+            # 증감 상위 100개
+            top_changes = df_non_total.dropna().nlargest(100, '증감량')
+            top_changes['증감량'] = top_changes['증감량'].astype(int)
+            top_changes['인구'] = top_changes['인구'].astype(int)
+
+            # 천 단위 콤마 포맷
+            def format_thousand(n): return f"{int(n):,}"
+
+            styled_table = top_changes[['연도', '지역', '인구', '증감량']].copy()
+            styled_table.columns = ['Year', 'Region', 'Population', 'Change']
+            styled_table['Population'] = styled_table['Population'].apply(format_thousand)
+            styled_table['Change'] = styled_table['Change'].apply(format_thousand)
+
+            # 색상 스타일 함수
+            def highlight_change(val):
+                val = int(val.replace(",", ""))
+                color = 'background-color: lightblue' if val > 0 else 'background-color: lightcoral'
+                return color
+
+            st.dataframe(
+                styled_table.style.applymap(highlight_change, subset=['Change']),
+                use_container_width=True
+            )
+
+            st.markdown("""
+            > 🎨 **색상 의미**  
+            - 🔵 파란 배경: 인구 증가  
+            - 🔴 빨간 배경: 인구 감소  
+            - 연도별로 어떤 지역이 급격히 늘거나 줄었는지 한눈에 파악할 수 있어요.
+            """)
+            st.subheader("6️⃣ 지역-연도 누적 영역 그래프")
+
+            pivot_df = df_pop.pivot(index='연도', columns='지역', values='인구')
+            pivot_df = pivot_df.drop(columns='전국', errors='ignore')  # '전국' 제외
+
+            fig, ax = plt.subplots(figsize=(10, 6))
+            pivot_df.plot.area(ax=ax, cmap='tab20', alpha=0.8)
+            ax.set_title("Population Area Chart by Region")
+            ax.set_xlabel("Year")
+            ax.set_ylabel("Population")
+            st.pyplot(fig)
+
+            st.markdown("""
+            > 📊 **누적 그래프 해석**  
+            - 그래프 면적이 커질수록 인구가 많은 지역입니다.  
+            - 연도별로 어떤 지역이 전체 인구에서 차지하는 비율이 늘거나 줄었는지 확인할 수 있어요.
+            """)
+
+
+
 
 # ---------------------
 # 페이지 객체 생성
