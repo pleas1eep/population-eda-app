@@ -448,7 +448,31 @@ class EDA:
                 > - 오른쪽: 로그 변환 후 분포는 훨씬 균형잡힌 형태로, 중앙값 부근에 데이터가 집중됩니다.  
                 > - 극단치의 영향이 완화되어 이후 분석·모델링 안정성이 높아집니다.
                 """)
+        # 9. 지역별 인구 분석 (추가)
+         with st.expander("📈 지역별 인구 분석 (population_trends.csv)"):
+            uploaded_pop = st.file_uploader("인구 데이터 업로드", type="csv", key="pop")
+            if uploaded_pop:
+            df_pop = pd.read_csv(uploaded_pop)
+            df_pop.replace('-', 0, inplace=True)
+            df_pop[['인구', '출생아수(명)', '사망자수(명)']] = df_pop[['인구', '출생아수(명)', '사망자수(명)']].astype(int)
 
+            st.subheader("1️⃣ 데이터 구조 확인")
+            buffer = io.StringIO()
+            df_pop.info(buf=buffer)
+            st.text(buffer.getvalue())
+
+            st.subheader("2️⃣ 기초 통계량")
+            st.dataframe(df_pop.describe())
+
+            st.subheader("3️⃣ 연도별 전체 인구 추이")
+            nationwide = df_pop[df_pop['지역'] == '전국']
+            fig, ax = plt.subplots()
+            sns.lineplot(data=nationwide, x='연도', y='인구', ax=ax)
+            ax.set_title("Population Trend (Nationwide)")
+            ax.set_xlabel("Year")
+            ax.set_ylabel("Population")
+            st.pyplot(fig)
+            
 
 # ---------------------
 # 페이지 객체 생성
