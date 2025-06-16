@@ -449,8 +449,8 @@ class EDA:
                 > - 극단치의 영향이 완화되어 이후 분석·모델링 안정성이 높아집니다.
                 """)
         # 9. 지역별 인구 분석 (추가)
-         with st.expander("📈 지역별 인구 분석 (population_trends.csv)"):
-            uploaded_pop = st.file_uploader("인구 데이터 업로드", type="csv", key="pop")
+        with st.expander("📈 지역별 인구 분석 (population_trends.csv)"):
+         uploaded_pop = st.file_uploader("인구 데이터 업로드", type="csv", key="pop")
             if uploaded_pop:
             df_pop = pd.read_csv(uploaded_pop)
             df_pop.replace('-', 0, inplace=True)
